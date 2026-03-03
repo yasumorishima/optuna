@@ -6,20 +6,12 @@ on:
       target_file:
         description: 'Target file path (e.g. optuna/samplers/_cmaes.py)'
         required: true
-      dry_run:
-        description: 'Dry run (show diff only, no PR created)'
-        type: choice
-        options:
-          - 'false'
-          - 'true'
-        default: 'false'
 
 jobs:
   fix:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,8 +37,7 @@ jobs:
       - name: Show diff
         run: git diff
 
-      - name: Create branch and commit
-        if: inputs.dry_run == 'false'
+      - name: Push branch to fork
         id: branch
         run: |
           FILE="${{ inputs.target_file }}"
@@ -58,25 +49,8 @@ jobs:
           git add "$FILE"
           git commit -m "fix: move type-annotation imports to TYPE_CHECKING in $FILE"
           git push origin "$BRANCH"
-          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
-
-      - name: Create PR in fork
-        if: inputs.dry_run == 'false'
-        run: |
-          FILE="${{ inputs.target_file }}"
-          BRANCH="${{ steps.branch.outputs.branch }}"
-          gh pr create \
-            --title "fix: TYPE_CHECKING imports in ${FILE}" \
-            --body "Part of [optuna/optuna#6029](https://github.com/optuna/optuna/issues/6029)
-
-Moves type-annotation-only imports under \`if TYPE_CHECKING:\` in \`${FILE}\`.
-
----
-- [ ] ruff check passes
-- [ ] CodeRabbit review clean
-- [ ] Tests pass
-- [ ] No fork-only files in diff" \
-            --base master \
-            --head "$BRANCH"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo ""
+          echo "=========================================="
+          echo "Branch pushed: $BRANCH"
+          echo "Review the diff above, then submit PR manually."
+          echo "=========================================="
