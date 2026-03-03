@@ -17,6 +17,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
       - name: Sync with upstream
         run: |
           git remote add upstream https://github.com/optuna/optuna.git
@@ -43,8 +48,6 @@ jobs:
           FILE="${{ inputs.target_file }}"
           SLUG=$(echo "$FILE" | sed 's|/|-|g; s|\.|-|g; s|_|-|g')
           BRANCH="fix/tch-${SLUG}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
           git add "$FILE"
           git commit -m "fix: move type-annotation imports to TYPE_CHECKING in $FILE"
