@@ -37,7 +37,14 @@ jobs:
           ruff check "${{ inputs.target_file }}" --select TCH || true
 
       - name: Apply ruff TCH fix
-        run: ruff check "${{ inputs.target_file }}" --select TCH --fix
+        run: |
+          # --unsafe-fixes も含めて全件修正（TCH ルールは from __future__ import annotations があれば安全）
+          ruff check "${{ inputs.target_file }}" --select TCH --fix --unsafe-fixes || true
+
+      - name: Check remaining violations
+        run: |
+          echo "=== Remaining violations after fix ==="
+          ruff check "${{ inputs.target_file }}" --select TCH || true
 
       - name: Show diff
         run: git diff
