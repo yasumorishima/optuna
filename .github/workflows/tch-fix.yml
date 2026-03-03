@@ -13,20 +13,15 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Set git identity
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Sync with upstream
+      - name: Checkout upstream/master directly
         run: |
-          git remote add upstream https://github.com/optuna/optuna.git
-          git fetch upstream
-          git rebase upstream/master
+          git clone --depth=1 https://github.com/optuna/optuna.git .
+          # upstream/master のみ。fork-only ファイルは一切含まない
 
       - name: Install ruff
         run: pip install ruff
@@ -38,8 +33,6 @@ jobs:
 
       - name: Apply ruff TCH fix
         run: |
-          # TCH001/002/003 のみ選択（TC006 の cast 変更を除外）
-          # 全 TCH fix は unsafe なので --unsafe-fixes 必須
           ruff check "${{ inputs.target_file }}" --select TCH001,TCH002,TCH003 --fix --unsafe-fixes || true
 
       - name: Check remaining violations
@@ -58,9 +51,11 @@ jobs:
           git checkout -b "$BRANCH"
           git add "$FILE"
           git commit -m "fix: move type-annotation imports to TYPE_CHECKING in $FILE"
-          git push origin "$BRANCH"
+          # fork に push
+          git remote add fork https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/yasumorishima/optuna.git
+          git push fork "$BRANCH"
           echo ""
           echo "=========================================="
           echo "Branch pushed: $BRANCH"
-          echo "Review the diff above, then submit PR manually."
+          echo "Diff contains ONLY the target file. Safe to submit upstream PR."
           echo "=========================================="
