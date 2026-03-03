@@ -1,0 +1,82 @@
+name: TCH Fix
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_file:
+        description: 'Target file path (e.g. optuna/samplers/_cmaes.py)'
+        required: true
+      dry_run:
+        description: 'Dry run (show diff only, no PR created)'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+        default: 'false'
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync with upstream
+        run: |
+          git remote add upstream https://github.com/optuna/optuna.git
+          git fetch upstream
+          git rebase upstream/master
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Check violations before fix
+        run: |
+          echo "=== TCH violations in ${{ inputs.target_file }} ==="
+          ruff check "${{ inputs.target_file }}" --select TCH || true
+
+      - name: Apply ruff TCH fix
+        run: ruff check "${{ inputs.target_file }}" --select TCH --fix
+
+      - name: Show diff
+        run: git diff
+
+      - name: Create branch and commit
+        if: inputs.dry_run == 'false'
+        id: branch
+        run: |
+          FILE="${{ inputs.target_file }}"
+          SLUG=$(echo "$FILE" | sed 's|/|-|g; s|\.|-|g; s|_|-|g')
+          BRANCH="fix/tch-${SLUG}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add "$FILE"
+          git commit -m "fix: move type-annotation imports to TYPE_CHECKING in $FILE"
+          git push origin "$BRANCH"
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Create PR in fork
+        if: inputs.dry_run == 'false'
+        run: |
+          FILE="${{ inputs.target_file }}"
+          BRANCH="${{ steps.branch.outputs.branch }}"
+          gh pr create \
+            --title "fix: TYPE_CHECKING imports in ${FILE}" \
+            --body "Part of [optuna/optuna#6029](https://github.com/optuna/optuna/issues/6029)
+
+Moves type-annotation-only imports under \`if TYPE_CHECKING:\` in \`${FILE}\`.
+
+---
+- [ ] ruff check passes
+- [ ] CodeRabbit review clean
+- [ ] Tests pass
+- [ ] No fork-only files in diff" \
+            --base master \
+            --head "$BRANCH"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
