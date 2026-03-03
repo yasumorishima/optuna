@@ -34,23 +34,23 @@ jobs:
       - name: Check violations before fix
         run: |
           echo "=== TCH violations in ${{ inputs.target_file }} ==="
-          ruff check "${{ inputs.target_file }}" --select TCH || true
+          ruff check "${{ inputs.target_file }}" --select TCH001,TCH002,TCH003 || true
 
       - name: Apply ruff TCH fix
         run: |
-          # --unsafe-fixes も含めて全件修正（TCH ルールは from __future__ import annotations があれば安全）
-          ruff check "${{ inputs.target_file }}" --select TCH --fix --unsafe-fixes || true
+          # TCH001/002/003 のみ選択（TC006 の cast 変更を除外）
+          # 全 TCH fix は unsafe なので --unsafe-fixes 必須
+          ruff check "${{ inputs.target_file }}" --select TCH001,TCH002,TCH003 --fix --unsafe-fixes || true
 
       - name: Check remaining violations
         run: |
           echo "=== Remaining violations after fix ==="
-          ruff check "${{ inputs.target_file }}" --select TCH || true
+          ruff check "${{ inputs.target_file }}" --select TCH001,TCH002,TCH003 || true
 
       - name: Show diff
         run: git diff
 
       - name: Push branch to fork
-        id: branch
         run: |
           FILE="${{ inputs.target_file }}"
           SLUG=$(echo "$FILE" | sed 's|/|-|g; s|\.|-|g; s|_|-|g')
